@@ -1,0 +1,1140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>OPERATOR 5v5</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0d10;
+    font-family: 'Segoe UI', Roboto, Arial, sans-serif; user-select: none; }
+  canvas { display: block; }
+
+  #crosshair {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 20px; height: 20px; pointer-events: none; z-index: 20;
+  }
+  #crosshair::before, #crosshair::after {
+    content: ""; position: absolute; background: #ffb020;
+  }
+  #crosshair::before { left: 9px; top: 0; width: 2px; height: 20px; }
+  #crosshair::after { top: 9px; left: 0; width: 20px; height: 2px; }
+  #crosshair .dot { position: absolute; left: 8px; top: 8px; width: 4px; height: 4px;
+    background: #ffb020; border-radius: 50%; }
+
+  #hud { position: fixed; inset: 0; pointer-events: none; z-index: 15; }
+
+  #topbar { position: absolute; top: 0; left: 0; right: 0; display: flex; justify-content: center;
+    padding-top: 14px; }
+  #scorebox { background: rgba(10,13,16,0.85); border: 1px solid #2a323a; border-radius: 6px;
+    padding: 8px 22px; display: flex; align-items: center; gap: 14px; color: #eee; }
+  #scoreCT { color: #4fa8ff; font-weight: 700; font-size: 22px; }
+  #scoreT { color: #ff5c5c; font-weight: 700; font-size: 22px; }
+  #timer { font-size: 20px; font-variant-numeric: tabular-nums; color: #ffb020; min-width: 54px; text-align: center; }
+  #phaseLabel { font-size: 11px; letter-spacing: 2px; color: #8a97a3; text-transform: uppercase; }
+
+  #bottombar { position: absolute; bottom: 0; left: 0; right: 0; display: flex; justify-content: space-between;
+    align-items: flex-end; padding: 18px 26px; }
+  #healthPanel, #weaponPanel { background: rgba(10,13,16,0.85); border: 1px solid #2a323a; border-radius: 6px;
+    padding: 10px 16px; color: #eee; min-width: 150px; }
+  #hpRow { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  #hpBarOuter { width: 130px; height: 10px; background: #241414; border-radius: 4px; overflow: hidden; border: 1px solid #3a2020; }
+  #hpBarInner { height: 100%; background: linear-gradient(90deg,#ff3b3b,#ff9d3b); width: 100%; transition: width .15s; }
+  #hpNum { font-weight: 700; font-size: 15px; }
+  #armorRow { font-size: 12px; color: #5fb8ff; }
+  #weaponPanel { text-align: right; }
+  #weaponName { font-size: 16px; font-weight: 700; letter-spacing: 1px; color: #ffb020; }
+  #ammoNum { font-size: 26px; font-weight: 700; transition: color .15s; }
+  #ammoNum.low { color: #ff5c5c; }
+  #ammoNum.pulse { animation: ammo-pulse .12s ease-out; }
+  @keyframes ammo-pulse { 0% { transform: scale(1.35); } 100% { transform: scale(1); } }
+  #ammoReserve { font-size: 14px; color: #8a97a3; }
+  #moneyPanel { position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%);
+    background: rgba(10,13,16,0.85); border: 1px solid #2a323a; border-radius: 6px; padding: 8px 18px;
+    color: #7CFC7C; font-weight: 700; font-size: 16px; }
+
+  #killfeed { position: absolute; top: 70px; right: 20px; display: flex; flex-direction: column; gap: 6px;
+    align-items: flex-end; }
+  .kf-entry { background: rgba(10,13,16,0.8); border-left: 3px solid #ffb020; padding: 5px 10px;
+    font-size: 13px; color: #ddd; border-radius: 3px; opacity: 0; animation: kf-in .25s forwards; }
+  @keyframes kf-in { to { opacity: 1; } }
+
+  #grenadeCount { position: absolute; bottom: 18px; left: 26px; background: rgba(10,13,16,0.85);
+    border: 1px solid #2a323a; border-radius: 6px; padding: 8px 14px; color: #eee; font-size: 14px;
+    display: none; }
+
+  #hitFlash { position: fixed; inset: 0; background: radial-gradient(circle, transparent 40%, rgba(255,0,0,0.35) 100%);
+    opacity: 0; pointer-events: none; z-index: 25; transition: opacity .1s; }
+
+  #centerMsg { position: absolute; top: 40%; left: 50%; transform: translate(-50%,-50%); text-align: center;
+    color: #ffb020; font-size: 34px; font-weight: 800; letter-spacing: 3px; text-shadow: 0 2px 10px rgba(0,0,0,0.8);
+    display: none; }
+  #centerSub { font-size: 15px; color: #ccc; margin-top: 8px; letter-spacing: 1px; font-weight: 400; }
+
+  /* ---------- Buy menu ---------- */
+  #buyMenu { position: fixed; inset: 0; background: rgba(6,8,10,0.92); z-index: 40;
+    display: none; align-items: center; justify-content: center; pointer-events: auto; }
+  #buyPanel { width: 640px; max-width: 92vw; background: #12161b; border: 1px solid #2a323a; border-radius: 10px;
+    padding: 26px 30px; color: #eee; }
+  #buyPanel h1 { font-size: 22px; letter-spacing: 2px; color: #ffb020; margin-bottom: 4px; }
+  #buyPanel .sub { color: #8a97a3; font-size: 13px; margin-bottom: 18px; }
+  .shopGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
+  .shopItem { background: #1a2028; border: 1px solid #2a323a; border-radius: 6px; padding: 12px 14px;
+    display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: border .15s; }
+  .shopItem:hover { border-color: #ffb020; }
+  .shopItem.owned { border-color: #4fa8ff; opacity: 0.7; cursor: default; }
+  .shopItem .name { font-weight: 700; font-size: 14px; }
+  .shopItem .desc { font-size: 11px; color: #8a97a3; margin-top: 2px; }
+  .shopItem .price { color: #7CFC7C; font-weight: 700; font-size: 14px; }
+  .shopItem .key { display: inline-block; background: #2a323a; border-radius: 3px; padding: 1px 6px;
+    font-size: 11px; margin-right: 6px; color: #ffb020; }
+  #buyFooter { display: flex; justify-content: space-between; align-items: center; }
+  #buyMoney { color: #7CFC7C; font-weight: 700; font-size: 16px; }
+  #startRoundBtn { background: #ffb020; color: #12161b; font-weight: 800; border: none; border-radius: 6px;
+    padding: 10px 22px; cursor: pointer; font-size: 14px; letter-spacing: 1px; }
+  #startRoundBtn:hover { background: #ffc850; }
+  #buyTimer { color: #ff5c5c; font-weight: 700; }
+
+  #startScreen { position: fixed; inset: 0; background: #05070a; z-index: 50; display: flex;
+    align-items: center; justify-content: center; flex-direction: column; color: #eee; text-align: center; }
+  #startScreen h1 { font-size: 46px; letter-spacing: 6px; color: #ffb020; }
+  #startScreen p { color: #8a97a3; margin: 14px 0 26px; max-width: 520px; line-height: 1.6; font-size: 14px; }
+  #startScreen button { background: #ffb020; color: #12161b; font-weight: 800; border: none; border-radius: 6px;
+    padding: 14px 34px; cursor: pointer; font-size: 16px; letter-spacing: 2px; }
+
+  #matchOver { position: fixed; inset: 0; background: rgba(5,7,10,0.95); z-index: 60; display: none;
+    align-items: center; justify-content: center; flex-direction: column; color: #eee; text-align: center; }
+  #matchOver h1 { font-size: 50px; letter-spacing: 4px; }
+  #matchOver button { margin-top: 24px; background: #ffb020; color: #12161b; font-weight: 800; border: none;
+    border-radius: 6px; padding: 12px 28px; cursor: pointer; font-size: 15px; }
+</style>
+</head>
+<body>
+
+<div id="startScreen">
+  <h1>OPERATOR 5v5</h1>
+  <p>Command a 4-bot squad against 5 enemy bots in a first-to-6-rounds firefight.
+     WASD to move, mouse to look, click to shoot, G to throw a grenade, B to open the buy menu during buy phase.</p>
+  <button id="startBtn">CLICK TO DEPLOY</button>
+</div>
+
+<div id="buyMenu">
+  <div id="buyPanel">
+    <h1>BUY MENU</h1>
+    <div class="sub">Buy phase — gear up before the round starts</div>
+    <div class="shopGrid" id="shopGrid"></div>
+    <div id="buyFooter">
+      <div id="buyMoney">$0</div>
+      <div id="buyTimer">00</div>
+      <button id="startRoundBtn">START ROUND</button>
+    </div>
+  </div>
+</div>
+
+<div id="matchOver">
+  <h1 id="matchOverTitle">VICTORY</h1>
+  <div id="matchOverSub" style="color:#8a97a3;font-size:15px;"></div>
+  <button id="restartBtn">PLAY AGAIN</button>
+</div>
+
+<div id="crosshair"><div class="dot"></div></div>
+<div id="hitFlash"></div>
+
+<div id="hud">
+  <div id="topbar">
+    <div id="scorebox">
+      <div id="scoreCT">0</div>
+      <div style="text-align:center;">
+        <div id="phaseLabel">ROUND</div>
+        <div id="timer">00:00</div>
+      </div>
+      <div id="scoreT">0</div>
+    </div>
+  </div>
+
+  <div id="killfeed"></div>
+
+  <div id="centerMsg">
+    ROUND<br><span id="centerSub"></span>
+  </div>
+
+  <div id="moneyPanel">$0</div>
+  <div id="grenadeCount">GRENADES: 0</div>
+
+  <div id="bottombar">
+    <div id="healthPanel">
+      <div id="hpRow">
+        <div id="hpBarOuter"><div id="hpBarInner"></div></div>
+        <div id="hpNum">100</div>
+      </div>
+      <div id="armorRow">ARMOR 0</div>
+    </div>
+    <div id="weaponPanel">
+      <div id="weaponName">PISTOL</div>
+      <div id="ammoNum">12</div>
+      <div id="ammoReserve">/ 999</div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* =====================================================================
+   OPERATOR 5v5 — a compact 3D competitive FPS with bots, a buy menu,
+   and grenades, built on top of raw three.js (no external FPS libs).
+   ===================================================================== */
+
+// ---------------------------------------------------------------------
+// Renderer / scene / camera
+// ---------------------------------------------------------------------
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x2b3440);
+scene.fog = new THREE.Fog(0x2b3440, 40, 95);
+
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.rotation.order = 'YXZ';
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+document.body.appendChild(renderer.domElement);
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// Lighting
+const hemi = new THREE.HemisphereLight(0xbfd6ff, 0x35301f, 0.9);
+scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xfff2d9, 0.9);
+sun.position.set(30, 50, 10);
+sun.castShadow = true;
+sun.shadow.mapSize.set(1024, 1024);
+sun.shadow.camera.left = -50; sun.shadow.camera.right = 50;
+sun.shadow.camera.top = 50; sun.shadow.camera.bottom = -50;
+scene.add(sun);
+
+// ---------------------------------------------------------------------
+// Map: ground, boundary walls, cover crates
+// ---------------------------------------------------------------------
+const ARENA = 40; // half-extent
+const wallBoxes = []; // THREE.Box3 list used for collision + line-of-sight blocking
+const wallMeshes = [];
+
+function addBox(x, z, w, d, h, color) {
+  const geo = new THREE.BoxGeometry(w, h, d);
+  const mat = new THREE.MeshStandardMaterial({ color });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(x, h / 2, z);
+  mesh.castShadow = true; mesh.receiveShadow = true;
+  scene.add(mesh);
+  const box = new THREE.Box3().setFromObject(mesh);
+  wallBoxes.push(box);
+  wallMeshes.push(mesh);
+  return mesh;
+}
+
+const groundGeo = new THREE.PlaneGeometry(ARENA * 2, ARENA * 2);
+const groundMat = new THREE.MeshStandardMaterial({ color: 0x4a5a44 });
+const ground = new THREE.Mesh(groundGeo, groundMat);
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// perimeter walls
+addBox(0, -ARENA, ARENA * 2, 1, 6, 0x5a6470);
+addBox(0, ARENA, ARENA * 2, 1, 6, 0x5a6470);
+addBox(-ARENA, 0, 1, ARENA * 2, 6, 0x5a6470);
+addBox(ARENA, 0, 1, ARENA * 2, 6, 0x5a6470);
+
+// cover crates scattered around mid-field
+const crateSpots = [
+  [-14, -6, 4, 4], [14, 6, 4, 4], [0, 0, 6, 3], [-8, 14, 3, 5],
+  [8, -14, 3, 5], [-20, 10, 4, 4], [20, -10, 4, 4], [-2, -18, 5, 3],
+  [2, 18, 5, 3], [18, 18, 3, 3], [-18, -18, 3, 3]
+];
+crateSpots.forEach(([x, z, w, d]) => addBox(x, z, w, d, 2.4, 0x8a6a3f));
+
+// spawn markers (visual only)
+function spawnMarker(x, z, color) {
+  const geo = new THREE.CircleGeometry(3, 24);
+  const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.35 });
+  const m = new THREE.Mesh(geo, mat);
+  m.rotation.x = -Math.PI / 2;
+  m.position.set(x, 0.02, z);
+  scene.add(m);
+}
+const CT_SPAWN = { x: -32, z: -32 };
+const T_SPAWN = { x: 32, z: 32 };
+spawnMarker(CT_SPAWN.x, CT_SPAWN.z, 0x4fa8ff);
+spawnMarker(T_SPAWN.x, T_SPAWN.z, 0xff5c5c);
+
+// ---------------------------------------------------------------------
+// Weapon view-model (attached to camera)
+// ---------------------------------------------------------------------
+const gunGroup = new THREE.Group();
+const gunBody = new THREE.Mesh(
+  new THREE.BoxGeometry(0.12, 0.12, 0.55),
+  new THREE.MeshStandardMaterial({ color: 0x1c1c1c })
+);
+gunBody.position.set(0.28, -0.28, -0.6);
+gunGroup.add(gunBody);
+
+const muzzleFlash = new THREE.Mesh(
+  new THREE.SphereGeometry(0.06, 8, 8),
+  new THREE.MeshBasicMaterial({ color: 0xffdd88, transparent: true, opacity: 0 })
+);
+muzzleFlash.position.set(0.28, -0.28, -0.9);
+gunGroup.add(muzzleFlash);
+const muzzleLight = new THREE.PointLight(0xffcc66, 0, 4);
+muzzleLight.position.copy(muzzleFlash.position);
+gunGroup.add(muzzleLight);
+
+camera.add(gunGroup);
+scene.add(camera);
+
+let muzzleFlashTimer = 0;
+let gunKickTimer = 0;
+const gunRestZ = gunBody.position.z;
+
+// ---------------------------------------------------------------------
+// Weapons data + shop pool
+// ---------------------------------------------------------------------
+const WEAPONS = {
+  pistol: { name: 'PISTOL', dmg: 24, mag: 12, reserve: 999, fireDelay: 0.28, auto: false },
+  smg:    { name: 'SMG',    dmg: 20, mag: 25, reserve: 180, fireDelay: 0.10, auto: true },
+  rifle:  { name: 'RIFLE',  dmg: 34, mag: 30, reserve: 150, fireDelay: 0.13, auto: true },
+};
+
+const SHOP_ITEMS = [
+  { id: 'smg',    name: 'SMG',        desc: 'Fast fire rate, close range',  price: 1200, key: '1' },
+  { id: 'rifle',  name: 'RIFLE',      desc: 'High damage, full auto',       price: 2500, key: '2' },
+  { id: 'armor',  name: 'ARMOR',      desc: 'Reduces incoming damage 40%',  price: 1000, key: '3' },
+  { id: 'grenade',name: 'GRENADE',    desc: 'Throwable, area damage',       price: 300,  key: '4' },
+];
+
+// ---------------------------------------------------------------------
+// Player state
+// ---------------------------------------------------------------------
+const player = {
+  hp: 100, maxHp: 100, armor: 0, alive: true, team: 'CT',
+  weapon: 'pistol', ammo: WEAPONS.pistol.mag, reserve: WEAPONS.pistol.reserve,
+  owned: { pistol: true, smg: false, rifle: false },
+  grenades: 0, money: 800, kills: 0,
+  fireCooldown: 0, velocityY: 0, reloading: false, reloadTimer: 0,
+  yaw: 0, pitch: 0,
+  recoilPitch: 0, recoilYaw: 0, recoilKickPitch: 0, recoilKickYaw: 0,
+};
+
+camera.position.set(CT_SPAWN.x, 1.7, CT_SPAWN.z);
+
+// ---------------------------------------------------------------------
+// Pointer lock + mouse look + movement input
+// ---------------------------------------------------------------------
+const keys = {};
+let pointerLocked = false;
+
+document.addEventListener('keydown', e => { keys[e.code] = true; });
+document.addEventListener('keyup', e => { keys[e.code] = false; });
+
+renderer.domElement.addEventListener('click', () => {
+  if (gameStarted && !buyMenuOpen && !matchOverFlag) renderer.domElement.requestPointerLock();
+});
+
+document.addEventListener('pointerlockchange', () => {
+  pointerLocked = document.pointerLockElement === renderer.domElement;
+});
+
+document.addEventListener('mousemove', e => {
+  if (!pointerLocked) return;
+  const sens = 0.0022;
+  player.yaw -= e.movementX * sens;
+  player.pitch -= e.movementY * sens;
+  player.pitch = Math.max(-Math.PI / 2 + 0.05, Math.min(Math.PI / 2 - 0.05, player.pitch));
+});
+
+function applyRecoilKick() {
+  // punch the view up/sideways; recovers smoothly each frame in updateCameraLook
+  player.recoilKickPitch += 0.028 + Math.random() * 0.012;
+  player.recoilKickYaw += (Math.random() - 0.5) * 0.018;
+}
+
+function updateCameraLook(dt) {
+  // recoil eases back to zero over time, separate from the player's own aim input
+  player.recoilKickPitch = Math.max(0, player.recoilKickPitch - dt * 2.2);
+  player.recoilKickYaw *= Math.max(0, 1 - dt * 6);
+
+  camera.rotation.y = player.yaw + player.recoilKickYaw;
+  camera.rotation.x = player.pitch + player.recoilKickPitch;
+}
+
+document.addEventListener('mousedown', e => {
+  if (e.button === 0 && pointerLocked) shootHeld = true;
+});
+document.addEventListener('mouseup', e => {
+  if (e.button === 0) shootHeld = false;
+});
+let shootHeld = false;
+
+document.addEventListener('keydown', e => {
+  if (e.code === 'KeyG') throwGrenade();
+  if (e.code === 'KeyR') startReload();
+  if (e.code === 'KeyB' && roundPhase === 'buy') toggleBuyMenu(true);
+  if (e.code === 'Digit1' && player.owned.pistol) switchWeapon('pistol');
+  if (e.code === 'Digit2' && player.owned.smg) switchWeapon('smg');
+  if (e.code === 'Digit3' && player.owned.rifle) switchWeapon('rifle');
+});
+
+function switchWeapon(id) {
+  player.weapon = id;
+  player.ammo = WEAPONS[id].mag;
+  player.reloading = false;
+}
+
+// ---------------------------------------------------------------------
+// Player movement + collision (simple AABB slide)
+// ---------------------------------------------------------------------
+function playerAABB(x, z) {
+  const r = 0.5;
+  return new THREE.Box3(
+    new THREE.Vector3(x - r, 0, z - r),
+    new THREE.Vector3(x + r, 2, z + r)
+  );
+}
+
+function collidesWalls(box) {
+  for (const w of wallBoxes) if (box.intersectsBox(w)) return true;
+  return false;
+}
+
+function updatePlayerMovement(dt) {
+  if (!player.alive) return;
+  const speed = 6.0;
+  let mx = 0, mz = 0;
+  if (keys['KeyW']) mz -= 1;
+  if (keys['KeyS']) mz += 1;
+  if (keys['KeyA']) mx -= 1;
+  if (keys['KeyD']) mx += 1;
+  if (mx !== 0 && mz !== 0) { mx *= 0.7071; mz *= 0.7071; }
+
+  const forward = new THREE.Vector3();
+  camera.getWorldDirection(forward);
+  forward.y = 0;
+  forward.normalize();
+  const right = new THREE.Vector3().crossVectors(forward, camera.up).normalize();
+
+  const move = new THREE.Vector3();
+  move.addScaledVector(forward, -mz);
+  move.addScaledVector(right, mx);
+  move.multiplyScalar(speed * dt);
+
+  const nx = camera.position.x + move.x;
+  const nz = camera.position.z + move.z;
+
+  if (!collidesWalls(playerAABB(nx, camera.position.z))) camera.position.x = nx;
+  if (!collidesWalls(playerAABB(camera.position.x, nz))) camera.position.z = nz;
+
+  camera.position.x = Math.max(-ARENA + 1, Math.min(ARENA - 1, camera.position.x));
+  camera.position.z = Math.max(-ARENA + 1, Math.min(ARENA - 1, camera.position.z));
+  camera.position.y = 1.7;
+}
+
+// ---------------------------------------------------------------------
+// Bots
+// ---------------------------------------------------------------------
+class Bot {
+  constructor(team, x, z) {
+    this.team = team;
+    this.alive = true;
+    this.hp = 100;
+    this.maxHp = 100;
+    this.armor = 0.15; // bots have light innate armor for balance
+    this.speed = 2.8 + Math.random() * 1.0;
+    this.fireCooldown = Math.random() * 1.2;
+    this.dmgMin = 16; this.dmgMax = 26;
+    this.state = 'advance';
+    this.strafeDir = Math.random() < 0.5 ? -1 : 1;
+    this.strafeTimer = 0;
+    this.target = null;
+
+    // human-like traits, randomized per bot so the squad doesn't feel uniform
+    this.reactionTime = 0.15 + Math.random() * 0.25;   // delay before reacting to newly-seen enemy
+    this.seenTimer = 0;                                 // how long current target has been visible
+    this.aimSkill = 0.55 + Math.random() * 0.35;        // 0-1, higher = tighter aim & faster tracking
+    this.aimError = 0.16;                                // current aim error, tightens the longer they track
+    this.retreatHpThreshold = 25 + Math.random() * 15;  // HP at which they fall back to cover
+    this.peekTimer = Math.random() * 2;
+    this.peekingOut = true;
+    this.lastKnownPos = null;
+
+    const color = team === 'CT' ? 0x3d7fd6 : 0xd63d3d;
+    this.group = new THREE.Group();
+    const body = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.4, 0.4, 1.2, 10),
+      new THREE.MeshStandardMaterial({ color })
+    );
+    body.position.y = 0.9;
+    body.castShadow = true;
+    const head = new THREE.Mesh(
+      new THREE.SphereGeometry(0.32, 12, 10),
+      new THREE.MeshStandardMaterial({ color: 0xe0b98f })
+    );
+    head.position.y = 1.65;
+    head.castShadow = true;
+    this.group.add(body, head);
+    this.group.position.set(x, 0, z);
+    this.bodyMesh = body; this.headMesh = head;
+    body.userData.bot = this; head.userData.bot = this;
+    scene.add(this.group);
+  }
+
+  eyePos() {
+    return new THREE.Vector3(this.group.position.x, 1.55, this.group.position.z);
+  }
+
+  takeDamage(amount, sourceIsPlayer) {
+    const reduced = amount * (1 - this.armor);
+    this.hp -= reduced;
+    if (this.hp <= 0 && this.alive) {
+      this.alive = false;
+      this.group.visible = false;
+      onEntityDeath(this, sourceIsPlayer);
+    }
+  }
+
+  remove() {
+    scene.remove(this.group);
+  }
+
+  // find nearest wall/crate direction to retreat toward when low on health
+  findCoverDir(fromEnemyDir) {
+    // simplest human-like instinct: step back and to a side, away from the threat
+    const perp = new THREE.Vector3(-fromEnemyDir.z, 0, fromEnemyDir.x);
+    const side = Math.random() < 0.5 ? 1 : -1;
+    return new THREE.Vector3()
+      .addScaledVector(fromEnemyDir, -0.7)
+      .addScaledVector(perp, side * 0.7)
+      .normalize();
+  }
+
+  update(dt, allUnits) {
+    if (!this.alive) return;
+
+    // pick nearest visible living enemy; prefer one already engaging us or closest
+    let best = null, bestScore = -Infinity;
+    for (const u of allUnits) {
+      if (u === this) continue;
+      if (u.team === this.team) continue;
+      if (u.alive === false) continue;
+      const pos = u.isPlayer ? camera.position : u.group.position;
+      const d = pos.distanceTo(this.group.position);
+      const visible = hasLineOfSight(this.eyePos(), u.isPlayer ?
+        new THREE.Vector3(camera.position.x, 1.6, camera.position.z) : u.eyePos());
+      // score: closer + visible is much better, so bots engage what they can actually see
+      const score = (visible ? 1000 : 0) - d;
+      if (score > bestScore) { bestScore = score; best = u; }
+    }
+
+    const targetChanged = this.target !== best;
+    this.target = best;
+    if (targetChanged) this.seenTimer = 0;
+
+    if (this.target) {
+      const targetPos = this.target.isPlayer ? camera.position : this.target.group.position;
+      const dir = new THREE.Vector3().subVectors(targetPos, this.group.position);
+      dir.y = 0;
+      const dist = dir.length();
+      dir.normalize();
+
+      const canSee = hasLineOfSight(this.eyePos(), this.target.isPlayer ?
+        new THREE.Vector3(camera.position.x, 1.6, camera.position.z) :
+        this.target.eyePos());
+
+      if (canSee) {
+        this.seenTimer += dt;
+        this.lastKnownPos = targetPos.clone();
+      } else {
+        this.seenTimer = 0;
+      }
+
+      // aim tightens the longer the target stays visible, like a real player tracking a target
+      const trackProgress = Math.min(1, this.seenTimer / (0.6 / this.aimSkill));
+      this.aimError = 0.22 * (1 - trackProgress) + 0.03 * (1 - this.aimSkill);
+
+      let moveVec = new THREE.Vector3();
+      const lowHp = this.hp <= this.retreatHpThreshold;
+      const preferDist = lowHp ? 22 : 14;
+
+      if (lowHp && canSee && dist < 16) {
+        // retreat toward cover instead of trading at point-blank while low
+        moveVec.copy(this.findCoverDir(dir));
+      } else if (canSee) {
+        if (dist > preferDist + 6) moveVec.copy(dir);
+        else if (dist < preferDist - 6) moveVec.copy(dir).multiplyScalar(-1);
+        else {
+          const perp = new THREE.Vector3(-dir.z, 0, dir.x);
+          moveVec.copy(perp).multiplyScalar(this.strafeDir);
+        }
+      } else if (this.lastKnownPos) {
+        // push toward where the enemy was last seen instead of standing still
+        const toLast = new THREE.Vector3().subVectors(this.lastKnownPos, this.group.position);
+        toLast.y = 0;
+        if (toLast.length() > 2) moveVec.copy(toLast.normalize());
+      } else {
+        moveVec.copy(dir);
+      }
+
+      this.strafeTimer -= dt;
+      if (this.strafeTimer <= 0) { this.strafeDir *= -1; this.strafeTimer = 0.8 + Math.random() * 1.6; }
+
+      moveVec.multiplyScalar(this.speed * dt);
+      const nx = this.group.position.x + moveVec.x;
+      const nz = this.group.position.z + moveVec.z;
+      if (!collidesWalls(playerAABB(nx, this.group.position.z))) this.group.position.x = nx;
+      if (!collidesWalls(playerAABB(this.group.position.x, nz))) this.group.position.z = nz;
+      this.group.position.x = Math.max(-ARENA + 1, Math.min(ARENA - 1, this.group.position.x));
+      this.group.position.z = Math.max(-ARENA + 1, Math.min(ARENA - 1, this.group.position.z));
+
+      if (canSee) this.group.lookAt(targetPos.x, 0, targetPos.z);
+
+      this.fireCooldown -= dt;
+      // reaction delay: won't fire on a target it hasn't tracked for at least reactionTime
+      const readyToFire = canSee && this.seenTimer >= this.reactionTime;
+      if (readyToFire && dist < 40 && this.fireCooldown <= 0) {
+        this.fireCooldown = (0.45 + Math.random() * 0.7) / (0.6 + this.aimSkill * 0.6);
+        // aim error scales miss chance with distance and current tracking accuracy
+        const missChance = Math.min(0.85, this.aimError + dist / 130);
+        const hitRoll = Math.random();
+        if (hitRoll > missChance) {
+          const headshotRoll = Math.random();
+          const isHeadshot = headshotRoll < 0.08 + this.aimSkill * 0.1;
+          const dmg = (this.dmgMin + Math.random() * (this.dmgMax - this.dmgMin)) * (isHeadshot ? 1.8 : 1);
+          if (this.target.isPlayer) damagePlayer(dmg);
+          else this.target.takeDamage(dmg, false);
+        }
+        spawnTracer(this.eyePos(), targetPos, this.team === 'CT' ? 0x9fc8ff : 0xffb0a0);
+      }
+    }
+  }
+}
+
+let bots = []; // all bots, both teams
+
+function spawnTeams() {
+  bots.forEach(b => b.remove());
+  bots = [];
+  // 4 CT teammates (player is the 5th)
+  for (let i = 0; i < 4; i++) {
+    const ox = CT_SPAWN.x + (Math.random() - 0.5) * 6;
+    const oz = CT_SPAWN.z + (Math.random() - 0.5) * 6;
+    bots.push(new Bot('CT', ox, oz));
+  }
+  // 5 T enemies
+  for (let i = 0; i < 5; i++) {
+    const ox = T_SPAWN.x + (Math.random() - 0.5) * 6;
+    const oz = T_SPAWN.z + (Math.random() - 0.5) * 6;
+    bots.push(new Bot('T', ox, oz));
+  }
+}
+
+function hasLineOfSight(from, to) {
+  const dir = new THREE.Vector3().subVectors(to, from);
+  const dist = dir.length();
+  dir.normalize();
+  const ray = new THREE.Raycaster(from, dir, 0, dist);
+  const hits = ray.intersectObjects(wallMeshes, false);
+  return hits.length === 0;
+}
+
+function spawnTracer(from, to, color = 0xffcf6b) {
+  const geo = new THREE.BufferGeometry().setFromPoints([from.clone(), to.clone()]);
+  const mat = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.7 });
+  const line = new THREE.Line(geo, mat);
+  scene.add(line);
+  setTimeout(() => scene.remove(line), 60);
+}
+
+// ---------------------------------------------------------------------
+// Player shooting
+// ---------------------------------------------------------------------
+const raycaster = new THREE.Raycaster();
+
+function tryPlayerShoot(dt) {
+  if (!player.alive || player.reloading) return;
+  player.fireCooldown -= dt;
+  player.recoilHeat = Math.max(0, (player.recoilHeat || 0) - dt * 1.6);
+  const w = WEAPONS[player.weapon];
+  const wantsFire = w.auto ? shootHeld : (shootHeld && shootEdge);
+  if (!wantsFire) return;
+  if (player.fireCooldown > 0) return;
+  if (player.ammo <= 0) { startReload(); return; }
+
+  player.fireCooldown = w.fireDelay;
+  player.ammo--;
+
+  player.recoilHeat = Math.min(1, (player.recoilHeat || 0) + 0.14);
+  const spread = 0.006 + player.recoilHeat * 0.02;
+  const spreadX = (Math.random() - 0.5) * spread;
+  const spreadY = (Math.random() - 0.5) * spread;
+
+  raycaster.setFromCamera({ x: spreadX, y: spreadY }, camera);
+  const targets = [];
+  bots.filter(b => b.alive && b.team !== player.team).forEach(b => targets.push(b.bodyMesh, b.headMesh));
+  const hits = raycaster.intersectObjects([...targets, ...wallMeshes], false);
+
+  const muzzleWorld = new THREE.Vector3();
+  muzzleFlash.getWorldPosition(muzzleWorld);
+  const rayEnd = hits.length > 0 ? hits[0].point : camera.position.clone().addScaledVector(raycaster.ray.direction, 60);
+  spawnTracer(muzzleWorld, rayEnd, 0xfff2b0);
+
+  if (hits.length > 0) {
+    const hit = hits[0];
+    const bot = hit.object.userData.bot;
+    if (bot) {
+      const headshot = hit.object === bot.headMesh;
+      bot.takeDamage(w.dmg * (headshot ? 1.8 : 1), true);
+    }
+  }
+  muzzleFlashTimer = 0.06;
+  pulseAmmoHud();
+  applyRecoilKick();
+  gunKickTimer = 0.09;
+}
+
+let shootEdge = false;
+document.addEventListener('mousedown', e => { if (e.button === 0) shootEdge = true; });
+
+function startReload() {
+  const w = WEAPONS[player.weapon];
+  if (player.reloading || player.ammo >= w.mag || player.reserve <= 0) return;
+  player.reloading = true;
+  player.reloadTimer = 1.4;
+}
+
+function updateReload(dt) {
+  if (!player.reloading) return;
+  player.reloadTimer -= dt;
+  if (player.reloadTimer <= 0) {
+    const w = WEAPONS[player.weapon];
+    const need = w.mag - player.ammo;
+    const take = Math.min(need, player.reserve);
+    player.ammo += take;
+    player.reserve -= take;
+    player.reloading = false;
+  }
+}
+
+function damagePlayer(amount) {
+  if (!player.alive) return;
+  const reduced = amount * (1 - player.armor);
+  player.hp -= reduced;
+  flashHit();
+  if (player.hp <= 0) {
+    player.alive = false;
+    onEntityDeath({ isPlayer: true, team: 'CT' }, false);
+  }
+}
+
+function flashHit() {
+  const el = document.getElementById('hitFlash');
+  el.style.opacity = '1';
+  setTimeout(() => el.style.opacity = '0', 120);
+}
+
+// ---------------------------------------------------------------------
+// Grenades
+// ---------------------------------------------------------------------
+const grenades = [];
+
+function throwGrenade() {
+  if (!player.alive || roundPhase !== 'live') return;
+  if (player.grenades <= 0) return;
+  player.grenades--;
+  updateGrenadeHud();
+
+  const dir = new THREE.Vector3();
+  camera.getWorldDirection(dir);
+  const vel = dir.clone().multiplyScalar(16);
+  vel.y += 5;
+
+  const mesh = new THREE.Mesh(
+    new THREE.SphereGeometry(0.14, 8, 8),
+    new THREE.MeshStandardMaterial({ color: 0x2f6b2f })
+  );
+  mesh.position.copy(camera.position);
+  scene.add(mesh);
+
+  grenades.push({ mesh, vel, fuse: 1.6, exploded: false });
+}
+
+function updateGrenades(dt, allUnits) {
+  for (let i = grenades.length - 1; i >= 0; i--) {
+    const g = grenades[i];
+    g.vel.y -= 18 * dt;
+    g.mesh.position.addScaledVector(g.vel, dt);
+
+    if (g.mesh.position.y < 0.14) {
+      g.mesh.position.y = 0.14;
+      g.vel.y *= -0.4;
+      g.vel.x *= 0.7; g.vel.z *= 0.7;
+    }
+    // simple wall bounce
+    const gb = new THREE.Box3().setFromCenterAndSize(g.mesh.position, new THREE.Vector3(0.3, 0.3, 0.3));
+    if (collidesWalls(gb)) {
+      g.vel.x *= -0.5; g.vel.z *= -0.5;
+      g.mesh.position.addScaledVector(g.vel, dt * 2);
+    }
+
+    g.fuse -= dt;
+    if (g.fuse <= 0 && !g.exploded) {
+      explodeGrenade(g.mesh.position.clone(), allUnits);
+      g.exploded = true;
+      scene.remove(g.mesh);
+      grenades.splice(i, 1);
+    }
+  }
+}
+
+function explodeGrenade(pos, allUnits) {
+  const radius = 9;
+  const maxDmg = 100;
+
+  // visual blast
+  const flash = new THREE.Mesh(
+    new THREE.SphereGeometry(0.3, 12, 12),
+    new THREE.MeshBasicMaterial({ color: 0xffaa33, transparent: true, opacity: 0.9 })
+  );
+  flash.position.copy(pos);
+  scene.add(flash);
+  let t = 0;
+  const grow = setInterval(() => {
+    t += 1;
+    flash.scale.setScalar(1 + t * 2.2);
+    flash.material.opacity = Math.max(0, 0.9 - t * 0.15);
+    if (t > 6) { clearInterval(grow); scene.remove(flash); }
+  }, 30);
+
+  // damage player
+  const distP = camera.position.distanceTo(pos);
+  if (distP < radius && player.alive) {
+    const dmg = maxDmg * (1 - distP / radius);
+    damagePlayer(dmg);
+  }
+  // damage bots
+  for (const b of bots) {
+    if (!b.alive) continue;
+    const d = b.group.position.distanceTo(pos);
+    if (d < radius) {
+      const dmg = maxDmg * (1 - d / radius);
+      b.takeDamage(dmg, true);
+    }
+  }
+}
+
+function updateGrenadeHud() {
+  const el = document.getElementById('grenadeCount');
+  el.textContent = 'GRENADES: ' + player.grenades;
+  el.style.display = player.grenades > 0 ? 'block' : 'none';
+}
+
+// ---------------------------------------------------------------------
+// Round / match state machine
+// ---------------------------------------------------------------------
+let roundsCT = 0, roundsT = 0;
+const ROUNDS_TO_WIN = 6;
+let roundPhase = 'buy'; // 'buy' | 'live' | 'end'
+let phaseTimer = 15;
+let buyMenuOpen = false;
+let gameStarted = false;
+let matchOverFlag = false;
+
+function killFeedAdd(text) {
+  const feed = document.getElementById('killfeed');
+  const entry = document.createElement('div');
+  entry.className = 'kf-entry';
+  entry.textContent = text;
+  feed.appendChild(entry);
+  setTimeout(() => entry.remove(), 4500);
+  while (feed.children.length > 5) feed.removeChild(feed.firstChild);
+}
+
+function onEntityDeath(entity, killedByPlayer) {
+  if (entity.isPlayer) {
+    killFeedAdd('You were eliminated');
+  } else {
+    killFeedAdd((entity.team === 'CT' ? 'CT bot' : 'T bot') + ' eliminated' + (killedByPlayer ? ' by you' : ''));
+    if (killedByPlayer) {
+      player.money += 300;
+      player.kills++;
+    }
+  }
+  checkRoundEnd();
+}
+
+function aliveCount(team) {
+  let n = 0;
+  if (player.team === team && player.alive) n++;
+  for (const b of bots) if (b.team === team && b.alive) n++;
+  return n;
+}
+
+function checkRoundEnd() {
+  if (roundPhase !== 'live') return;
+  const ctAlive = aliveCount('CT');
+  const tAlive = aliveCount('T');
+  if (ctAlive === 0) endRound('T');
+  else if (tAlive === 0) endRound('CT');
+}
+
+function endRound(winner) {
+  roundPhase = 'end';
+  document.exitPointerLock();
+  if (winner === 'CT') { roundsCT++; player.money += player.team === 'CT' ? 3250 : 1500; }
+  else { roundsT++; player.money += player.team === 'CT' ? 1500 : 3250; }
+
+  updateScoreHud();
+
+  const cm = document.getElementById('centerMsg');
+  const cs = document.getElementById('centerSub');
+  cm.style.display = 'block';
+  cm.firstChild.textContent = winner + ' TEAM WINS ROUND';
+  cs.textContent = `CT ${roundsCT} — ${roundsT} T`;
+
+  setTimeout(() => {
+    cm.style.display = 'none';
+    if (roundsCT >= ROUNDS_TO_WIN || roundsT >= ROUNDS_TO_WIN) {
+      showMatchOver(roundsCT > roundsT ? 'CT' : 'T');
+    } else {
+      startBuyPhase();
+    }
+  }, 2600);
+}
+
+function showMatchOver(winner) {
+  matchOverFlag = true;
+  document.exitPointerLock();
+  const el = document.getElementById('matchOver');
+  const title = document.getElementById('matchOverTitle');
+  const sub = document.getElementById('matchOverSub');
+  const youWon = winner === player.team;
+  title.textContent = youWon ? 'VICTORY' : 'DEFEAT';
+  title.style.color = youWon ? '#7CFC7C' : '#ff5c5c';
+  sub.textContent = `Final score — CT ${roundsCT} : ${roundsT} T   |   Your kills: ${player.kills}`;
+  el.style.display = 'flex';
+}
+
+function startBuyPhase() {
+  roundPhase = 'buy';
+  phaseTimer = 15;
+  respawnAll();
+  renderShop();
+  toggleBuyMenu(true);
+}
+
+function respawnAll() {
+  player.hp = player.maxHp;
+  player.alive = true;
+  player.ammo = WEAPONS[player.weapon].mag;
+  camera.position.set(CT_SPAWN.x, 1.7, CT_SPAWN.z);
+  spawnTeams();
+}
+
+function startLiveRound() {
+  roundPhase = 'live';
+  phaseTimer = 90;
+  toggleBuyMenu(false);
+  if (!pointerLocked) renderer.domElement.requestPointerLock();
+}
+
+// ---------------------------------------------------------------------
+// Buy menu UI
+// ---------------------------------------------------------------------
+function renderShop() {
+  const grid = document.getElementById('shopGrid');
+  grid.innerHTML = '';
+  SHOP_ITEMS.forEach(item => {
+    const owned = (item.id === 'smg' && player.owned.smg) ||
+                  (item.id === 'rifle' && player.owned.rifle) ||
+                  (item.id === 'armor' && player.armor > 0);
+    const div = document.createElement('div');
+    div.className = 'shopItem' + (owned ? ' owned' : '');
+    div.innerHTML = `
+      <div>
+        <div class="name"><span class="key">${item.key}</span>${item.name}</div>
+        <div class="desc">${item.desc}</div>
+      </div>
+      <div class="price">${owned ? 'OWNED' : '$' + item.price}</div>
+    `;
+    if (!owned) div.addEventListener('click', () => buyItem(item.id));
+    grid.appendChild(div);
+  });
+  document.getElementById('buyMoney').textContent = '$' + Math.floor(player.money);
+}
+
+function buyItem(id) {
+  const item = SHOP_ITEMS.find(i => i.id === id);
+  if (!item) return;
+  if (id === 'grenade') {
+    if (player.grenades >= 3) return;
+    if (player.money < item.price) return;
+    player.money -= item.price;
+    player.grenades++;
+    updateGrenadeHud();
+  } else if (id === 'armor') {
+    if (player.armor > 0 || player.money < item.price) return;
+    player.money -= item.price;
+    player.armor = 0.4;
+  } else {
+    if (player.owned[id] || player.money < item.price) return;
+    player.money -= item.price;
+    player.owned[id] = true;
+    switchWeapon(id);
+  }
+  renderShop();
+}
+
+document.addEventListener('keydown', e => {
+  if (!buyMenuOpen) return;
+  const map = { 'Digit1': 'smg', 'Digit2': 'rifle', 'Digit3': 'armor', 'Digit4': 'grenade' };
+  if (map[e.code]) buyItem(map[e.code]);
+});
+
+function toggleBuyMenu(open) {
+  buyMenuOpen = open;
+  document.getElementById('buyMenu').style.display = open ? 'flex' : 'none';
+  if (open) document.exitPointerLock();
+}
+
+document.getElementById('startRoundBtn').addEventListener('click', startLiveRound);
+
+// ---------------------------------------------------------------------
+// HUD updates
+// ---------------------------------------------------------------------
+function updateScoreHud() {
+  document.getElementById('scoreCT').textContent = roundsCT;
+  document.getElementById('scoreT').textContent = roundsT;
+}
+
+function pulseAmmoHud() {
+  const el = document.getElementById('ammoNum');
+  el.classList.remove('pulse');
+  void el.offsetWidth; // restart animation
+  el.classList.add('pulse');
+}
+
+function updateHud() {
+  document.getElementById('hpNum').textContent = Math.max(0, Math.round(player.hp));
+  document.getElementById('hpBarInner').style.width = Math.max(0, player.hp) + '%';
+  document.getElementById('armorRow').textContent = 'ARMOR ' + Math.round(player.armor * 100);
+  document.getElementById('weaponName').textContent = player.reloading ? 'RELOADING' : WEAPONS[player.weapon].name;
+  const ammoEl = document.getElementById('ammoNum');
+  ammoEl.textContent = player.ammo;
+  const w = WEAPONS[player.weapon];
+  ammoEl.classList.toggle('low', !player.reloading && player.ammo <= Math.ceil(w.mag * 0.2));
+  document.getElementById('ammoReserve').textContent = '/ ' + player.reserve;
+  document.getElementById('moneyPanel').textContent = '$' + Math.floor(player.money);
+  document.getElementById('buyMoney').textContent = '$' + Math.floor(player.money);
+
+  const mins = Math.floor(Math.max(0, phaseTimer) / 60).toString().padStart(2, '0');
+  const secs = Math.floor(Math.max(0, phaseTimer) % 60).toString().padStart(2, '0');
+  document.getElementById('timer').textContent = mins + ':' + secs;
+  document.getElementById('phaseLabel').textContent =
+    roundPhase === 'buy' ? 'BUY PHASE' : (roundPhase === 'live' ? 'LIVE' : 'ROUND OVER');
+  document.getElementById('buyTimer').textContent = Math.ceil(Math.max(0, phaseTimer)) + 's';
+}
+
+// ---------------------------------------------------------------------
+// Main loop
+// ---------------------------------------------------------------------
+const clock = new THREE.Clock();
+
+function allUnitsList() {
+  const list = [{ isPlayer: true, team: player.team, get alive() { return player.alive; } }];
+  return list.concat(bots);
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+
+  if (gameStarted && !matchOverFlag) {
+    if (roundPhase === 'buy') {
+      phaseTimer -= dt;
+      if (phaseTimer <= 0) startLiveRound();
+    } else if (roundPhase === 'live') {
+      phaseTimer -= dt;
+      updatePlayerMovement(dt);
+      updateReload(dt);
+      tryPlayerShoot(dt);
+      shootEdge = false;
+
+      const units = allUnitsList();
+      for (const b of bots) b.update(dt, units);
+      updateGrenades(dt, units);
+
+      if (phaseTimer <= 0) {
+        // time's up: team with more alive members wins; tie favors T (defenders)
+        const ctA = aliveCount('CT'), tA = aliveCount('T');
+        endRound(ctA > tA ? 'CT' : 'T');
+      }
+    }
+  }
+
+  updateHud();
+  updateMuzzleFlash(dt);
+  updateCameraLook(dt);
+  updateGunKick(dt);
+  renderer.render(scene, camera);
+}
+
+function updateGunKick(dt) {
+  if (gunKickTimer > 0) {
+    gunKickTimer -= dt;
+    const t = Math.max(0, gunKickTimer / 0.09);
+    gunBody.position.z = gunRestZ + t * 0.09;
+  } else {
+    gunBody.position.z = gunRestZ;
+  }
+}
+
+function updateMuzzleFlash(dt) {
+  if (muzzleFlashTimer > 0) {
+    muzzleFlashTimer -= dt;
+    const t = Math.max(0, muzzleFlashTimer / 0.06);
+    muzzleFlash.material.opacity = t;
+    muzzleLight.intensity = t * 2.5;
+  } else {
+    muzzleFlash.material.opacity = 0;
+    muzzleLight.intensity = 0;
+  }
+}
+
+// ---------------------------------------------------------------------
+// Start / restart
+// ---------------------------------------------------------------------
+document.getElementById('startBtn').addEventListener('click', () => {
+  document.getElementById('startScreen').style.display = 'none';
+  gameStarted = true;
+  updateGrenadeHud();
+  updateScoreHud();
+  startBuyPhase();
+});
+
+document.getElementById('restartBtn').addEventListener('click', () => {
+  roundsCT = 0; roundsT = 0;
+  player.hp = player.maxHp; player.alive = true; player.money = 800;
+  player.armor = 0; player.grenades = 0; player.kills = 0;
+  player.owned = { pistol: true, smg: false, rifle: false };
+  switchWeapon('pistol');
+  matchOverFlag = false;
+  document.getElementById('matchOver').style.display = 'none';
+  updateScoreHud();
+  updateGrenadeHud();
+  startBuyPhase();
+});
+
+animate();
+</script>
+</body>
+</html>
