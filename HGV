@@ -49,3 +49,26 @@ int main() {
     // printf("what is your school\n");
     // scanf("%s", &school);
     // printf("you in %s\n", school);
+
+
+
+
+#include <stdio.h>
+
+int main(void) {
+    int age;
+    int height;
+    char initial;
+
+    printf("age: ");
+    scanf("%d", &age); // Added '&' to pass the memory address of age
+    printf("Height: ");
+    scanf("%d", &height);
+    printf("Initial: ");
+    scanf(" %c", &initial); // Added a leading space before %c to skip the leftover newline
+    printf("Hi, age %d, height %d, initial %c\n", age, height, initial); // Fixed format specifier order and removed literal '&'
+    return 0;
+}
+//no &
+//no leading space before %c to skip the left over newline
+//Fixed format specifier order and removed literal &
