@@ -1,0 +1,51 @@
+
+#include <stdio.h>
+
+int main() {
+    int grades = 0;
+    printf("how many grades do you got");
+    scanf("%d", &grades);
+    if (grades >= 90){
+        printf("your got grade A");
+    }
+    else if (grades >= 70){
+        printf("your got grade b");        
+    }
+    else if (grades >= 60){
+        printf("your got grade c");
+    } 
+    else if (grades <= 60){
+        printf("your got grade d");
+    }    
+    else if (grades <= 50){
+        printf("your got grade f");
+    }
+    else{
+        printf("you need to improve");
+    }
+        
+    return 0;
+}
+
+
+
+
+
+
+
+
+
+    // char name[20] = "";
+    // printf("what is your name\n");
+    // scanf("%s", name);
+    // printf("hello %s\n", name);
+    
+    // int grade ;
+    // printf("what is your grade\n");
+    // scanf("%d", &grade);
+    // printf("you in grade %d\n", grade) ;
+
+    // char school[99] = "";
+    // printf("what is your school\n");
+    // scanf("%s", &school);
+    // printf("you in %s\n", school);
